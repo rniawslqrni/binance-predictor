@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <meta content="#080b11" name="theme-color"/>
+  <meta content="Binance Futures Predictor V9.2.1 Pro" name="description"/>
+  <title>Binance Futures Predictor V9.2.1 Pro - Dukunkripto</title> 
+  
+  <script src="https://cdn.tailwindcss.com"></script>  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/js/all.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; min-height: 100%; overflow-x: hidden; }
+    body {
+      background: radial-gradient(circle at top right, rgba(245,158,11,.08), transparent 30%), #080b11;
+      color: #e5e7eb;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+    .predictor-wrapper { width: 100%; min-height: 100vh; }
+    .predictor-container { width: 100%; max-width: 1152px; margin: 0 auto; padding: 20px 16px 40px; }
+    .card { background: rgba(17, 24, 39, .86); border: 1px solid rgba(75,85,99,.35); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+    .label { color: #9ca3af; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; }
+    .value { font-weight: 700; }
+    .signal-long { color: #22c55e; }
+    .signal-short { color: #ef4444; }
+    .signal-wait { color: #f59e0b; }
+    .score-bar { height: 10px; border-radius: 999px; background: #1f2937; overflow: hidden; position: relative; }
+    .score-fill { height: 100%; border-radius: 999px; transition: width .4s ease, background .4s ease; background: #f59e0b; }
+    .pulse-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: #ef4444; box-shadow: 0 0 10px rgba(239,68,68,.8); }
+    .pulse-dot.connected { background: #22c55e; box-shadow: 0 0 10px rgba(34,197,94,.8); }
+    .flash-up { animation: flashUp .5s ease; }
+    .flash-down { animation: flashDown .5s ease; }
+    @keyframes flashUp { 0% { color: #22c55e; } 100% { color: inherit; } }
+    @keyframes flashDown { 0% { color: #ef4444; } 100% { color: inherit; } }
+    .score-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid rgba(75,85,99,.25); font-size: 0.9rem; }
+    .score-row:last-child { border-bottom: none; }
+    .score-positive { color: #22c55e !important; font-weight: 700; }
+    .score-negative { color: #ef4444 !important; font-weight: 700; }
+    .score-neutral { color: #9ca3af !important; font-weight: 700; }
+    .badge { border: 1px solid rgba(107,114,128,.35); background: rgba(31,41,55,.55); padding: 4px 8px; border-radius: 8px; font-size: .7rem; }
+    .predictor-select { width: 100%; background: #111827; border: 1px solid #374151; color: #e5e7eb; border-radius: 10px; padding: 9px 12px; outline: none; cursor: pointer; }
+    .predictor-select:focus { border-color: #f59e0b; }
+    .predictor-footer { text-align: center; color: #6b7280; font-size: 11px; padding: 8px 0 0; }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    @media (max-width: 640px) {
+      .predictor-container { padding: 12px 10px 25px; }
+      .card { border-radius: 13px; }
+      #mainSignal { font-size: 2.2rem; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="predictor-wrapper">
+    <div class="predictor-container">
+
+      <!-- HEADER -->
+      <header class="card p-4 mb-4">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-chart-line text-yellow-400 text-xl"></i>
+              <div>
+                <h1 class="text-xl font-bold">Dukunkripto Pro</h1>
+                <div class="text-xs text-gray-500">V9.2.1 • Node.js &amp; Vercel Edition</div>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="pulse-dot" id="connectionDot"></span>
+            <span class="text-gray-400" id="connectionStatus">Menghubungkan...</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- CONTROL -->
+      <section class="card p-4 mb-4 relative z-50">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="relative" id="pairDropdownContainer">
+            <div class="label mb-2">Cari Pair Koin</div>
+            <div class="relative">
+              <input autocomplete="off" class="predictor-select w-full pr-10" id="pairSearchInput" placeholder="Ketik koin..." type="text"/>
+              <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <i class="fa-solid fa-chevron-down text-gray-500 text-sm"></i>
+              </div>
+            </div>
+            <div class="absolute z-[100] w-full mt-1 bg-[#111827] border border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden scrollbar-hide" id="pairDropdownList"></div>
+          </div>
+          <div>
+            <div class="label mb-2">Timeframe Analisis</div>
+            <select class="predictor-select" id="tfSelect">
+              <option value="5m">5 Menit</option>
+              <option selected="selected" value="15m">15 Menit</option>
+              <option value="1h">1 Jam</option>
+              <option value="4h">4 Jam</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- ERROR -->
+      <div class="hidden card border-red-500/30 bg-red-950/20 p-4 mb-4 text-sm text-red-300" id="errorBox"></div>
+
+      <!-- PRICE INFO -->
+      <section class="card p-5 mb-4 relative z-10">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="col-span-2 md:col-span-1">
+            <div class="label">Mark Price Realtime</div>
+            <div class="text-3xl font-bold mt-1" id="markPrice">-</div>
+            <div class="text-xs text-gray-500 mt-1">Binance Futures</div>
+          </div>
+          <div><div class="label">Timeframe</div><div class="value text-lg mt-1" id="priceTF">15m</div></div>
+          <div><div class="label">Volume / 20MA</div><div class="value text-sm mt-2 break-all" id="volumeValue">-</div></div>
+          <div class="col-span-2 md:col-span-1">
+            <div class="label">Update Terakhir</div>
+            <div class="value text-sm mt-2" id="lastUpdate">-</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MAIN SIGNAL -->
+      <section class="card p-5 mb-4">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div class="label">Sinyal Teknikal Pro</div>
+            <div class="text-4xl font-black signal-wait mt-1" id="mainSignal">WAIT</div>
+            <div class="text-sm text-gray-400 mt-2 leading-relaxed" id="signalReason">Menunggu data indikator...</div>
+          </div>
+          <div class="text-left md:text-right">
+            <div class="label">Total Score Pro</div>
+            <div class="text-4xl font-black mt-1" id="totalScore">0</div>
+            <div class="text-xs text-gray-500">Range -100 sampai +100</div>
+          </div>
+        </div>
+        <div class="mt-5">
+          <div class="score-bar"><div class="score-fill" id="scoreFill" style="width:50%;"></div></div>
+          <div class="flex justify-between text-xs text-gray-500 mt-1">
+            <span>-100 Bearish</span><span>0 Neutral</span><span>+100 Bullish</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- TECHNICAL SCORE BREAKDOWN -->
+      <section class="card p-5 mb-4">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <div class="label">Technical Score Breakdown</div>
+            <h2 class="font-bold text-lg">Komponen Penilaian Algoritma</h2>
+          </div>
+          <span class="badge" id="scoreStatus">NEUTRAL</span>
+        </div>
+        <div id="scoreBreakdown">
+          <div class="score-row"><span>EMA 9 / 21 Trend</span><span id="scoreEMA">0</span></div>
+          <div class="score-row"><span>Harga vs EMA 50</span><span id="scoreEMA50">0</span></div>
+          <div class="score-row"><span>MACD Momentum</span><span id="scoreMACD">0</span></div>
+          <div class="score-row"><span>RSI 14 Zone</span><span id="scoreRSI">0</span></div>
+          <div class="score-row"><span>ADX &amp; DI Power</span><span id="scoreADX">0</span></div>
+          <div class="score-row"><span>Volume Spike Filter</span><span id="scoreVolume">0</span></div>
+          <div class="score-row"><span>Open Interest &amp; Funding Rate</span><span id="scoreSentiment">0</span></div>
+          <div class="score-row"><span>Multi-Timeframe (MTF) Bias</span><span id="scoreMTF">0</span></div>
+          <div class="score-row pt-3 border-t border-gray-600">
+            <span class="font-bold text-base">TOTAL PRO SCORE</span>
+            <span class="text-lg font-bold" id="scoreTotalBreakdown">0</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- MULTI-TIMEFRAME -->
+      <section class="card p-5 mb-4">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <div><div class="label">Multi Timeframe</div><h2 class="font-bold text-lg">Konfirmasi Trend Makro</h2></div>
+          <div>
+            <div class="label text-left md:text-right">MTF Score</div>
+            <div class="text-xl font-bold text-left md:text-right" id="mtfScore">0</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="bg-gray-900/70 rounded-xl p-4">
+            <div class="label">Current TF</div><div class="font-bold mt-1" id="currentTFLabel">15m</div>
+            <div class="text-lg font-bold mt-2" id="currentTFScore">0</div><div class="text-xs text-gray-500" id="currentTFBias">Neutral</div>
+          </div>
+          <div class="bg-gray-900/70 rounded-xl p-4">
+            <div class="label">Higher TF</div><div class="font-bold mt-1" id="higherTFLabel">1h</div>
+            <div class="text-lg font-bold mt-2" id="higherTFScore">0</div><div class="text-xs text-gray-500" id="higherTFBias">Neutral</div>
+          </div>
+          <div class="bg-gray-900/70 rounded-xl p-4">
+            <div class="label">Major TF</div><div class="font-bold mt-1" id="majorTFLabel">4h</div>
+            <div class="text-lg font-bold mt-2" id="majorTFScore">0</div><div class="text-xs text-gray-500" id="majorTFBias">Neutral</div>
+          </div>
+        </div>
+        <div class="text-xs text-gray-500 mt-3 text-center md:text-left leading-relaxed" id="mtfUpdateInfo">
+          MTF belum diperbarui
+        </div>
+      </section>
+
+      <!-- OPERATION & MULTI TP -->
+      <section class="card p-5 mb-4">
+        <div class="label mb-3">Manajemen Risiko &amp; Multi-Level Target (ATR-Based)</div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div><div class="label">Entry Price</div><div class="value text-base mt-1 break-all" id="entryPrice">-</div></div>
+          <div><div class="label">Take Profit 1 (TP1)</div><div class="value text-base mt-1 break-all text-green-400" id="tp1Price">-</div></div>
+          <div><div class="label">Take Profit 2 (TP2)</div><div class="value text-base mt-1 break-all text-green-500" id="tp2Price">-</div></div>
+          <div><div class="label">Stop Loss (SL)</div><div class="value text-base mt-1 break-all text-red-500" id="slPrice">-</div></div>
+        </div>
+        <div class="text-xs text-gray-400 mt-4 leading-relaxed" id="operationStatus">
+          Belum ada sinyal terkonfirmasi. TP1 = 1.5x ATR, TP2 = 3.0x ATR, SL = 1.5x ATR.
+        </div>
+      </section>
+
+      <!-- SENTIMENT & INDICATORS -->
+      <section class="card p-5 mb-4">
+        <div class="label mb-3">Data Futures Sentiment &amp; Technical Indicators</div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div><div class="label">Open Interest (OI)</div><div class="value mt-1 text-sm" id="oiValue">-</div></div>
+          <div><div class="label">Funding Rate</div><div class="value mt-1 text-sm" id="frValue">-</div></div>
+          <div><div class="label">Advanced Support</div><div class="value mt-1 break-all text-sm" id="supportValue">-</div></div>
+          <div><div class="label">Advanced Resist</div><div class="value mt-1 break-all text-sm" id="resistanceValue">-</div></div>
+          
+          <div><div class="label">EMA 9 / 21</div><div class="value mt-1 break-all text-xs" id="ema921">- / -</div></div>
+          <div><div class="label">EMA 50</div><div class="value mt-1 break-all text-xs" id="ema50">-</div></div>
+          <div><div class="label">ATR 14</div><div class="value mt-1 break-all text-xs" id="atr14">-</div></div>
+          <div><div class="label">Volume Spike</div><div class="value mt-1 break-all text-xs" id="volSpikeStatus">-</div></div>
+          
+          <div><div class="label">RSI 14</div><div class="value mt-1 break-all text-xs" id="rsi14">-</div></div>
+          <div><div class="label">ADX 14</div><div class="value mt-1 break-all text-xs" id="adx14">-</div></div>
+          <div><div class="label">DI+ / DI-</div><div class="value mt-1 break-all text-xs" id="diValues">- / -</div></div>
+          <div><div class="label">MACD Hist</div><div class="value mt-1 break-all text-xs" id="macdHist">-</div></div>
+        </div>
+      </section>
+
+      <!-- DISCLAIMER -->
+      <section class="card p-4 mb-8">
+        <div class="text-xs text-gray-500 leading-relaxed text-center md:text-left">
+          <i class="fa-solid fa-circle-info mr-1"></i>
+          Dashboard Pro V9.2.1 mencakup analisis sentimen Futures (OI &amp; Funding Rate), Volume Spike, Multi-TP, dan Swing S/R. Sinyal bersifat informatif dan bukan rekomendasi keuangan (NFA).
+        </div>
+      </section>
+
+      <div class="predictor-footer">
+        Binance Futures Predictor V9.2.1 Pro • Dukunkripto 2026
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let marketWS = null;
+    let reconnectTimer = null;
+    let restFallbackTimer = null;
+    let appGeneration = 0;
+    let candles = [];
+    
+    let currentPair = 'BTCUSDT';
+    let currentTF = '15m';
+    let currentMarkPrice = null;
+    let currentAnalysis = null;
+    let mtfScoreValue = 0;
+    let mtfData = { current: 0, higher: 0, major: 0 };
+    let lastMTFFetch = 0;
+    let reconnectAttempts = 0;
+    let previousSignal = 'WAIT';
+    
+    let futuresSentiment = { openInterest: 0, fundingRate: 0 };
+    let lastSentimentFetch = 0;
+
+    const MTF_REFRESH_MS = 60000;
+    const SENTIMENT_REFRESH_MS = 30000;
+    const MAX_CANDLES = 200;
+
+    const $ = id => document.getElementById(id);
+
+    let audioCtx = null;
+    function playAlertSound(type) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        if (type === 'LONG') {
+          osc.type = 'sine'; osc.frequency.setValueAtTime(600, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.3);
+        } else {
+          osc.type = 'sawtooth'; osc.frequency.setValueAtTime(500, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.3);
+        }
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+        osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 0.5);
+      } catch(e) {}
+    }
+
+    function updateBrowserTitle(signal) {
+      document.title = signal === 'WAIT' ? `Pro V9.2.1 - ${currentPair} (${currentTF})` : `[${signal}] ${currentPair} - Pro V9.2.1`;
+    }
+
+    function formatPrice(value) {
+      if (!Number.isFinite(value)) return '-';
+      if (value >= 1000) return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (value >= 1) return value.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 4 });
+      if (value >= 0.01) return value.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 6 });
+      return value.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 8 });
+    }
+
+    function formatNumber(value, digits = 2) { return !Number.isFinite(value) ? '-' : Number(value).toFixed(digits); }
+    function formatScore(value) { return !Number.isFinite(value) ? '0' : (value > 0 ? `+${Math.round(value)}` : `${Math.round(value)}`); }
+    function scoreClass(value) { return value > 0 ? 'score-positive' : (value < 0 ? 'score-negative' : 'score-neutral'); }
+    function biasText(score) { return score >= 20 ? 'BULLISH' : (score <= -20 ? 'BEARISH' : 'NEUTRAL'); }
+
+    async function fetchSentimentData(force = false) {
+      const now = Date.now();
+      if (!force && now - lastSentimentFetch < SENTIMENT_REFRESH_MS) return;
+      try {
+        const [piRes, oiRes] = await Promise.all([
+          apiFetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${currentPair}`),
+          apiFetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${currentPair}`)
+        ]);
+        futuresSentiment.fundingRate = Number(piRes.lastFundingRate || 0);
+        futuresSentiment.openInterest = Number(oiRes.openInterest || 0);
+        lastSentimentFetch = Date.now();
+      } catch(e) { console.warn('Sentiment fetch warning:', e); }
+    }
+
+    function calcAdvancedSupportResistance(highs, lows, period = 20) {
+      if (!highs || highs.length < period) return { support: 0, resistance: 0 };
+      const recentHighs = highs.slice(-period);
+      const recentLows = lows.slice(-period);
+      
+      let support = Math.min(...recentLows);
+      let resistance = Math.max(...recentHighs);
+      
+      for (let i = 2; i < recentLows.length - 2; i++) {
+        if (recentLows[i] < recentLows[i-1] && recentLows[i] < recentLows[i-2] && recentLows[i] < recentLows[i+1] && recentLows[i] < recentLows[i+2]) {
+          if (recentLows[i] > support) support = recentLows[i];
+        }
+        if (recentHighs[i] > recentHighs[i-1] && recentHighs[i] > recentHighs[i-2] && recentHighs[i] > recentHighs[i+1] && recentHighs[i] > recentHighs[i+2]) {
+          if (recentHighs[i] < resistance) resistance = recentHighs[i];
+        }
+      }
+      return { support, resistance };
+    }
+
+    function calcEMA(data, period) {
+      if (!data || data.length < period) return null;
+      const multiplier = 2 / (period + 1);
+      let ema = data.slice(0, period).reduce((a, b) => a + b, 0) / period;
+      for (let i = period; i < data.length; i++) ema = ((data[i] - ema) * multiplier) + ema;
+      return ema;
+    }
+    
+    function calcMACD(data) {
+      if(!data || data.length < 35) return {macd: null, signal: null, hist: null};
+      let e12 = data.slice(0, 12).reduce((a, b) => a + b) / 12;
+      let e26 = data.slice(0, 26).reduce((a, b) => a + b) / 26;
+      for(let i=12; i<data.length; i++) e12 = (data[i] - e12) * (2/13) + e12;
+      for(let i=26; i<data.length; i++) e26 = (data[i] - e26) * (2/27) + e26;
+      let k12 = 2/13, k26 = 2/27, k9 = 2/10, m12 = data[0], m26 = data[0], macdLine = [];
+      for(let i=1; i<data.length; i++) { m12 = (data[i] - m12) * k12 + m12; m26 = (data[i] - m26) * k26 + m26; macdLine.push(m12 - m26); }
+      let sig = macdLine.slice(0,9).reduce((a,b)=>a+b)/9;
+      for(let i=9; i<macdLine.length; i++) sig = (macdLine[i] - sig) * k9 + sig;
+      let lastMacd = macdLine[macdLine.length-1];
+      return { macd: lastMacd, signal: sig, hist: lastMacd - sig };
+    }
+
+    function calcRSI(data, period = 14) {
+      if (!data || data.length < period + 1) return null;
+      let gains = 0, losses = 0;
+      for (let i = 1; i <= period; i++) { const diff = data[i] - data[i - 1]; if (diff >= 0) gains += diff; else losses += Math.abs(diff); }
+      let avgGain = gains / period, avgLoss = losses / period;
+      for (let i = period + 1; i < data.length; i++) {
+        const diff = data[i] - data[i - 1], gain = diff > 0 ? diff : 0, loss = diff < 0 ? Math.abs(diff) : 0;
+        avgGain = ((avgGain * (period - 1)) + gain) / period; avgLoss = ((avgLoss * (period - 1)) + loss) / period;
+      }
+      if (avgLoss === 0) return 100;
+      return 100 - (100 / (1 + (avgGain / avgLoss)));
+    }
+
+    function calcATR(high, low, close, period = 14) {
+      if (!high || high.length < period + 1) return null;
+      const tr = [];
+      for (let i = 1; i < high.length; i++) tr.push(Math.max(high[i] - low[i], Math.abs(high[i] - close[i - 1]), Math.abs(low[i] - close[i - 1])));
+      let atr = tr.slice(0, period).reduce((a, b) => a + b, 0) / period;
+      for (let i = period; i < tr.length; i++) atr = ((atr * (period - 1)) + tr[i]) / period;
+      return atr;
+    }
+
+    function calcADX(high, low, close, period = 14) {
+      if (!high || high.length < period * 2) return { adx: null, diPlus: null, diMinus: null };
+      const trs = [], plusDM = [], minusDM = [];
+      for (let i = 1; i < high.length; i++) {
+        const upMove = high[i] - high[i - 1], downMove = low[i - 1] - low[i];
+        trs.push(Math.max(high[i] - low[i], Math.abs(high[i] - close[i - 1]), Math.abs(low[i] - close[i - 1])));
+        plusDM.push(upMove > downMove && upMove > 0 ? upMove : 0); minusDM.push(downMove > upMove && downMove > 0 ? downMove : 0);
+      }
+      let atr = trs.slice(0, period).reduce((a, b) => a + b, 0) / period, pDM = plusDM.slice(0, period).reduce((a, b) => a + b, 0) / period, mDM = minusDM.slice(0, period).reduce((a, b) => a + b, 0) / period;
+      const dxValues = []; let latestPlusDI = 0, latestMinusDI = 0;
+      for (let i = period; i < trs.length; i++) {
+        atr = ((atr * (period - 1)) + trs[i]) / period; pDM = ((pDM * (period - 1)) + plusDM[i]) / period; mDM = ((mDM * (period - 1)) + minusDM[i]) / period;
+        latestPlusDI = atr === 0 ? 0 : (100 * pDM / atr); latestMinusDI = atr === 0 ? 0 : (100 * mDM / atr);
+        dxValues.push((latestPlusDI + latestMinusDI) === 0 ? 0 : 100 * Math.abs(latestPlusDI - latestMinusDI) / (latestPlusDI + latestMinusDI));
+      }
+      let adx = dxValues.slice(0, period).reduce((a, b) => a + b, 0) / period;
+      for (let i = period; i < dxValues.length; i++) adx = ((adx * (period - 1)) + dxValues[i]) / period;
+      return { adx, diPlus: latestPlusDI, diMinus: latestMinusDI };
+    }
+
+    async function apiFetch(url) {
+      const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    async function fetchKlines(limit = 150) {
+      const data = await apiFetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${currentPair}&interval=${currentTF}&limit=${limit}`);
+      return data.map(k => ({ time: Number(k[0]), open: Number(k[1]), high: Number(k[2]), low: Number(k[3]), close: Number(k[4]), volume: Number(k[5]) }));
+    }
+
+    function getHigherTF(tf) { return tf === '5m' ? '15m' : (tf === '15m' ? '1h' : (tf === '1h' ? '4h' : '15m')); }
+    function getMajorTF(tf) { return tf === '5m' ? '1h' : (tf === '15m' ? '4h' : (tf === '1h' ? '1d' : '4h')); }
+
+    function scoreFromCandles(data) {
+      if (!data || data.length < 60) return 0;
+      const close = data.map(x => x.close), ema9 = calcEMA(close, 9), ema21 = calcEMA(close, 21), ema50 = calcEMA(close, 50), rsi = calcRSI(close, 14), macd = calcMACD(close);
+      if (!Number.isFinite(ema9) || !Number.isFinite(rsi)) return 0;
+      let score = 0;
+      if (ema9 > ema21) score += 25; else score -= 25;
+      if (close[close.length-1] > ema50) score += 25; else score -= 25;
+      if (rsi >= 50 && rsi < 70) score += 15; else if (rsi < 50 && rsi > 30) score -= 15;
+      if (macd.hist > 0) score += 35; else if (macd.hist < 0) score -= 35;
+      return Math.max(-100, Math.min(100, Math.round(score)));
+    }
+
+    async function getTFScore(tf) {
+      const data = await apiFetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${currentPair}&interval=${tf}&limit=100`);
+      return scoreFromCandles(data.map(k => ({ close: Number(k[4]) })));
+    }
+
+    function updateMTFCard() {
+      $('currentTFLabel').textContent = currentTF; $('higherTFLabel').textContent = getHigherTF(currentTF); $('majorTFLabel').textContent = getMajorTF(currentTF);$('currentTFScore').textContent = formatScore(mtfData.current); $('higherTFScore').textContent = formatScore(mtfData.higher);$('majorTFScore').textContent = formatScore(mtfData.major);
+      $('currentTFBias').textContent = biasText(mtfData.current);$('higherTFBias').textContent = biasText(mtfData.higher); $('majorTFBias').textContent = biasText(mtfData.major);$('currentTFScore').className = `text-lg font-bold mt-2 ${scoreClass(mtfData.current)}`; $('higherTFScore').className = `text-lg font-bold mt-2 ${scoreClass(mtfData.higher)}`; $('majorTFScore').className = `text-lg font-bold mt-2 ${scoreClass(mtfData.major)}`;
+      $('mtfScore').textContent = formatScore(mtfScoreValue);$('mtfScore').className = `text-xl font-bold text-left md:text-right ${scoreClass(mtfScoreValue)}`;
+      $('mtfUpdateInfo').textContent = `Bobot: Current 40% • Higher 35% • Major 25% • Terakhir: ${new Date().toLocaleTimeString('id-ID')}`;
+    }
+
+    async function fetchMTF(force = false) {
+      const now = Date.now();
+      if (!force && now - lastMTFFetch < MTF_REFRESH_MS) return;
+      try {
+        const currentScore = scoreFromCandles(candles);
+        const [higherScore, majorScore] = await Promise.all([getTFScore(getHigherTF(currentTF)), getTFScore(getMajorTF(currentTF))]);
+        lastMTFFetch = Date.now();
+        mtfData = { current: currentScore, higher: higherScore, major: majorScore };
+        mtfScoreValue = Math.max(-100, Math.min(100, Math.round(currentScore * 0.40 + higherScore * 0.35 + majorScore * 0.25)));
+        updateMTFCard();
+        if (candles.length) analyzeData(candles);
+      } catch (error) { console.warn('MTF error:', error); }
+    }
+
+    function analyzeData(data) {
+      if (!data || data.length < 60) return;
+      const close = data.map(x => x.close);
+      const high = data.map(x => x.high);
+      const low = data.map(x => x.low);
+      const volumes = data.map(x => x.volume);
+      const price = close[close.length - 1];
+      
+      const ema9 = calcEMA(close, 9);
+      const ema21 = calcEMA(close, 21);
+      const ema50 = calcEMA(close, 50);
+      const rsi = calcRSI(close, 14);
+      const macd = calcMACD(close);
+      const atr = calcATR(high, low, close, 14);
+      const { adx, diPlus, diMinus } = calcADX(high, low, close, 14);
+      
+      if (!Number.isFinite(price) || !Number.isFinite(ema9) || !Number.isFinite(atr)) return;
+
+      const recentVols = volumes.slice(-21, -1);
+      const volSMA = recentVols.reduce((a,b)=>a+b,0) / recentVols.length;
+      const currentVol = volumes[volumes.length - 1];
+      const isVolSpike = currentVol > (volSMA * 1.5);
+      
+      let volScore = 0;
+      if (isVolSpike) {
+        const priceDirection = close[close.length - 1] >= close[close.length - 2] ? 1 : -1;
+        volScore = priceDirection > 0 ? 10 : -10;
+      }
+
+      let sentimentScore = 0;
+      if (futuresSentiment.fundingRate > 0.0001) sentimentScore += 10;
+      else if (futuresSentiment.fundingRate < -0.0001) sentimentScore -= 10;
+
+      let emaScore = ema9 > ema21 ? 15 : (ema9 < ema21 ? -15 : 0);
+      let ema50Score = price > ema50 ? 15 : (price < ema50 ? -15 : 0);
+      let rsiScore = (rsi >= 50 && rsi < 68) ? 10 : ((rsi >= 32 && rsi < 50) ? -10 : (rsi >= 68 ? -5 : 5));
+      let macdScore = (macd.hist > 0 && macd.macd > macd.signal) ? 15 : ((macd.hist < 0 && macd.macd < macd.signal) ? -15 : 0);
+      let adxScore = (Number.isFinite(adx) && adx >= 20) ? (diPlus > diMinus ? 15 : -15) : 0;
+      let mtfContribution = Math.round(mtfScoreValue * 0.15);
+
+      let totalScore = Math.round(Math.max(-100, Math.min(100, emaScore + ema50Score + macdScore + rsiScore + adxScore + volScore + sentimentScore + mtfContribution)));
+
+      const longCond = { ema: ema9 > ema21, price: price > ema50, adx: adx >= 20, di: diPlus > diMinus, macd: macd.hist > 0 };
+      const shortCond = { ema: ema9 < ema21, price: price < ema50, adx: adx >= 20, di: diMinus > diPlus, macd: macd.hist < 0 };
+      
+      let signal = 'WAIT', reason = '';
+      if (totalScore >= 55 && longCond.ema && longCond.price && longCond.adx && longCond.di && longCond.macd) {
+        signal = 'LONG'; reason = `PRO BULLISH VALID • Score ${formatScore(totalScore)} • Volume & Sentimen Mendukung`;
+      } else if (totalScore <= -55 && shortCond.ema && shortCond.price && shortCond.adx && shortCond.di && shortCond.macd) {
+        signal = 'SHORT'; reason = `PRO BEARISH VALID • Score ${formatScore(totalScore)} • Volume & Sentimen Mendukung`;
+      } else {
+        reason = totalScore >= 20 ? `BULLISH BIAS (${formatScore(totalScore)}) • Belum memenuhi syarat penuh` : totalScore <= -20 ? `BEARISH BIAS (${formatScore(totalScore)}) • Belum memenuhi syarat penuh` : `NETRAL (${formatScore(totalScore)}) • Pasar Konsolidasi`;
+      }
+
+      if (signal !== previousSignal && signal !== 'WAIT') {
+        playAlertSound(signal);
+      }
+      if (signal !== previousSignal) { updateBrowserTitle(signal); previousSignal = signal; }
+
+      let entry = price, tp1 = null, tp2 = null, sl = null;
+      if (signal === 'LONG') {
+        sl = price - (atr * 1.5);
+        tp1 = price + (atr * 1.5);
+        tp2 = price + (atr * 3.0);
+      } else if (signal === 'SHORT') {
+        sl = price + (atr * 1.5);
+        tp1 = price - (atr * 1.5);
+        tp2 = price - (atr * 3.0);
+      }
+
+      currentAnalysis = { signal, totalScore, atr, entry, tp1, tp2, sl };
+
+      const swingSR = calcAdvancedSupportResistance(high, low, 50);
+
+      $('mainSignal').textContent = signal; 
+      $('mainSignal').className = 'text-4xl font-black ' + (signal === 'LONG' ? 'signal-long' : signal === 'SHORT' ? 'signal-short' : 'signal-wait');$('totalScore').textContent = formatScore(totalScore); 
+      $('totalScore').className = 'text-4xl font-black ' + scoreClass(totalScore);$('signalReason').textContent = reason;
+      
+      $('scoreFill').style.width = `${((totalScore + 100) / 200) * 100}%`; 
+      $('scoreFill').style.background = totalScore >= 55 ? '#22c55e' : (totalScore <= -55 ? '#ef4444' : '#f59e0b');
+
+      $('scoreStatus').textContent = biasText(totalScore);$('scoreStatus').className = `badge ${scoreClass(totalScore)}`;
+      $('scoreEMA').textContent = formatScore(emaScore);$('scoreEMA').className = scoreClass(emaScore);
+      $('scoreEMA50').textContent = formatScore(ema50Score);$('scoreEMA50').className = scoreClass(ema50Score);
+      $('scoreMACD').textContent = formatScore(macdScore);$('scoreMACD').className = scoreClass(macdScore);
+      $('scoreRSI').textContent = formatScore(rsiScore);$('scoreRSI').className = scoreClass(rsiScore);
+      $('scoreADX').textContent = formatScore(adxScore);$('scoreADX').className = scoreClass(adxScore);
+      $('scoreVolume').textContent = formatScore(volScore);$('scoreVolume').className = scoreClass(volScore);
+      $('scoreSentiment').textContent = formatScore(sentimentScore);$('scoreSentiment').className = scoreClass(sentimentScore);
+      $('scoreMTF').textContent = formatScore(mtfContribution);$('scoreMTF').className = scoreClass(mtfContribution);
+      $('scoreTotalBreakdown').textContent = formatScore(totalScore);$('scoreTotalBreakdown').className = scoreClass(totalScore);
+
+      $('entryPrice').textContent = formatPrice(entry);
+      if (signal === 'WAIT') {
+        $('tp1Price').textContent = '-';$('tp2Price').textContent = '-'; $('slPrice').textContent = '-';$('operationStatus').textContent = 'WAIT: Belum ada sinyal konfirmasi pro.';
+      } else {
+        $('tp1Price').textContent = formatPrice(tp1);$('tp2Price').textContent = formatPrice(tp2); 
+        $('slPrice').textContent = formatPrice(sl);$('operationStatus').textContent = `${signal} Aktif. Rekomendasi: Close 50% posisi di TP1, sisanya di TP2. SL ditempatkan di 1.5x ATR.`;
+      }
+
+      $('oiValue').textContent = futuresSentiment.openInterest ? Number(futuresSentiment.openInterest).toLocaleString('en-US', {maximumFractionDigits:0}) : '-';
+      $('frValue').textContent = `${(futuresSentiment.fundingRate * 100).toFixed(4)}%`;
+      $('supportValue').textContent = formatPrice(swingSR.support);$('resistanceValue').textContent = formatPrice(swingSR.resistance);
+
+      $('ema921').textContent = `${formatPrice(ema9)} / ${formatPrice(ema21)}`;
+      $('ema50').textContent = formatPrice(ema50);
+      $('rsi14').textContent = formatNumber(rsi, 2);$('adx14').textContent = Number.isFinite(adx) ? formatNumber(adx, 2) : '-';
+      $('diValues').textContent = `${Number.isFinite(diPlus) ? formatNumber(diPlus,1) : '-'} / ${Number.isFinite(diMinus) ? formatNumber(diMinus,1) : '-'}`;
+      $('atr14').textContent = formatPrice(atr);$('volSpikeStatus').textContent = isVolSpike ? 'SPIKE DETECTED!' : 'Normal';
+      if(isVolSpike) $('volSpikeStatus').className = 'value mt-1 break-all text-yellow-400 font-bold';$('macdHist').textContent = macd.hist !== null ? formatNumber(macd.hist, 4) : '-';
+      $('macdHist').className = macd.hist > 0 ? 'value mt-1 break-all text-green-500 text-xs' : 'value mt-1 break-all text-red-500 text-xs';
+    }
+
+    function updateMarkPrice(price) {
+      if (!Number.isFinite(price)) return;
+      const oldPrice = currentMarkPrice; currentMarkPrice = price; const el = $('markPrice'); el.textContent = formatPrice(price);
+      if (oldPrice !== null) {
+        if (price > oldPrice) { el.classList.remove('flash-down'); void el.offsetWidth; el.classList.add('flash-up'); }
+        else if (price < oldPrice) { el.classList.remove('flash-up'); void el.offsetWidth; el.classList.add('flash-down'); }
+      }
+      $('entryPrice').textContent = formatPrice(price);
+      if (currentAnalysis && currentAnalysis.signal !== 'WAIT' && Number.isFinite(currentAnalysis.atr)) {
+        const atr = currentAnalysis.atr;
+        if (currentAnalysis.signal === 'LONG') {
+          currentAnalysis.tp1 = price + (atr * 1.5);
+          currentAnalysis.tp2 = price + (atr * 3.0);
+          currentAnalysis.sl = price - (atr * 1.5);
+        } else {
+          currentAnalysis.tp1 = price - (atr * 1.5);
+          currentAnalysis.tp2 = price - (atr * 3.0);
+          currentAnalysis.sl = price + (atr * 1.5);
+        }
+        $('tp1Price').textContent = formatPrice(currentAnalysis.tp1);
+        $('tp2Price').textContent = formatPrice(currentAnalysis.tp2);$('slPrice').textContent = formatPrice(currentAnalysis.sl);
+      }
+    }
+
+    async function updateMarkPriceREST() {
+      try {
+        const data = await apiFetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${currentPair}`);
+        updateMarkPrice(Number(data.markPrice));
+      } catch (error) { console.warn('Mark price REST error:', error); }
+    }
+
+    function setConnectionStatus(connected, text) { $('connectionDot').classList.toggle('connected', connected);$('connectionStatus').textContent = text; }
+
+    function stopMarketWS() {
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+      if (marketWS) { try { marketWS.onclose = null; marketWS.close(); } catch(e){} marketWS = null; }
+    }
+
+    function startMarketWS() {
+      stopMarketWS(); const gen = appGeneration, symbol = currentPair.toLowerCase();
+      setConnectionStatus(false, 'Menghubungkan WS...');
+      try { marketWS = new WebSocket(`wss://fstream.binance.com/stream?streams=${symbol}@markPrice@1s/${symbol}@kline_${currentTF}`); } 
+      catch (e) { scheduleReconnect(gen); return; }
+
+      marketWS.onopen = () => { if (gen === appGeneration) { reconnectAttempts = 0; setConnectionStatus(true, 'Pro Realtime Aktif'); }};
+      marketWS.onmessage = e => {
+        if (gen !== appGeneration) return;
+        try {
+          const parsed = JSON.parse(e.data);
+          const d = parsed.data;
+          if (!d) return;
+          if (d.e === 'markPriceUpdate') { updateMarkPrice(Number(d.p)); return; }
+          if (d.e === 'kline') {
+            const c = { time: Number(d.k.t), open: Number(d.k.o), high: Number(d.k.h), low: Number(d.k.l), close: Number(d.k.c), volume: Number(d.k.v) };
+            if (candles.length && candles[candles.length-1].time === c.time) candles[candles.length-1] = c; else candles.push(c);
+            if (candles.length > MAX_CANDLES) candles = candles.slice(-MAX_CANDLES);
+            
+            const recentVols = candles.slice(-21, -1).map(x => x.volume);
+            const volSMA = recentVols.length ? recentVols.reduce((a,b)=>a+b,0) / recentVols.length : c.volume;
+            $('volumeValue').textContent = `${Number(c.volume).toLocaleString('en-US', {maximumFractionDigits:0})} / ${Math.round(volSMA).toLocaleString()}`;
+            $('lastUpdate').textContent = new Date().toLocaleTimeString('id-ID');
+            
+            analyzeData(candles);
+            if (d.k.x === true) { fetchMTF(false); fetchSentimentData(true); }
+          }
+        } catch (err) {}
+      };
+      marketWS.onerror = () => setConnectionStatus(false, 'WS Error');
+      marketWS.onclose = () => { if (gen === appGeneration) { setConnectionStatus(false, 'Terputus • Reconnect...'); scheduleReconnect(gen); }};
+    }
+
+    function scheduleReconnect(gen) {
+      if (gen !== appGeneration) return;
+      reconnectAttempts++; reconnectTimer = setTimeout(() => { if (gen === appGeneration) startMarketWS(); }, Math.min(30000, 2000 * Math.pow(2, reconnectAttempts - 1)));
+    }
+
+    function startRESTFallback() {
+      if (restFallbackTimer) clearInterval(restFallbackTimer);
+      restFallbackTimer = setInterval(() => {
+        if (!marketWS || marketWS.readyState !== WebSocket.OPEN) updateMarkPriceREST();
+      }, 15000);
+    }
+
+    async function startApp() {
+      const gen = ++appGeneration; stopMarketWS();
+      candles = []; currentAnalysis = null; currentMarkPrice = null; mtfScoreValue = 0; mtfData = { current: 0, higher: 0, major: 0 }; lastMTFFetch = 0; previousSignal = 'WAIT';
+      
+      $('errorBox').classList.add('hidden');$('priceTF').textContent = currentTF;
+      $('mainSignal').textContent = 'WAIT';$('signalReason').textContent = 'Memuat data sentimen & klines...';
+      updateBrowserTitle('WAIT'); setConnectionStatus(false, 'Mengambil data awal...');
+
+      try {
+        await updateMarkPriceREST();
+        await fetchSentimentData(true);
+        candles = await fetchKlines(150);
+        if (gen !== appGeneration) return;
+        
+        const recentVols = candles.slice(-21, -1).map(x => x.volume);
+        const volSMA = recentVols.length ? recentVols.reduce((a,b)=>a+b,0) / recentVols.length : 1;
+        $('volumeValue').textContent = `${Number(candles[candles.length - 1].volume).toLocaleString('en-US', { maximumFractionDigits: 0 })} / ${Math.round(volSMA).toLocaleString()}`;
+        
+        analyzeData(candles); 
+        await fetchMTF(true);
+        if (gen !== appGeneration) return;
+        
+        startMarketWS();
+        startRESTFallback();
+        $('lastUpdate').textContent = new Date().toLocaleTimeString('id-ID');
+      } catch (err) {
+        if (gen !== appGeneration) return;
+        $('errorBox').textContent = `Gagal memuat data: ${err.message}`; $('errorBox').classList.remove('hidden'); setConnectionStatus(false, 'Gagal terhubung');
+      }
+    }
+
+    const cryptoPairs = [
+      "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT", "DOTUSDT",
+      "LTCUSDT", "BCHUSDT", "NEARUSDT", "APTUSDT", "ARBUSDT", "OPUSDT", "INJUSDT", "FTMUSDT", "ATOMUSDT", "FILUSDT",
+      "SUIUSDT", "SEIUSDT", "TIAUSDT", "WLDUSDT", "1000PEPEUSDT", "1000SHIBUSDT", "1000BONKUSDT", "1000FLOKIUSDT", "WIFUSDT", 
+      "ORDIUSDT", "1000SATSUSDT", "JTOUSDT", "PYTHUSDT", "DYDXUSDT", "GALAUSDT", "SANDUSDT", "MANAUSDT", "RENDERUSDT", "FETUSDT", 
+      "AGIXUSDT", "ALGOUSDT", "STXUSDT", "RUNEUSDT", "THETAUSDT", "EGLDUSDT", "HBARUSDT", "VETUSDT", "ICPUSDT", "APEUSDT", 
+      "AXSUSDT", "CRVUSDT", "MKRUSDT", "SNXUSDT", "AAVEUSDT", "TRXUSDT", "GMXUSDT", "LDOUSDT", "KASUSDT", "TAOUSDT", "ONDOUSDT"
+    ];
+    const pairInput = $('pairSearchInput'), pairDropdown =$('pairDropdownList');
+
+    function renderDropdown(filterText = "") {
+      pairDropdown.innerHTML = ""; const filtered = cryptoPairs.filter(p => p.toLowerCase().includes(filterText.toLowerCase()));
+      if (filtered.length === 0) { pairDropdown.innerHTML = "<div class='px-4 py-3 text-sm text-gray-500 italic'>Pair tidak ditemukan</div>"; return; }
+      filtered.forEach(pair => {
+        const div = document.createElement('div'); div.className = 'px-4 py-3 text-sm text-gray-200 border-b border-gray-700/50 hover:bg-gray-700 hover:text-yellow-400 cursor-pointer';
+        div.innerHTML = pair.includes("1000") ? `<span class='text-xs text-gray-400 mr-1'>1000</span><span class='font-bold'>${pair.replace('1000', '')}</span>` : `<span class='font-bold'>${pair.replace('USDT', '')}</span><span class='text-xs text-gray-400 ml-1'>USDT</span>`;
+        div.onclick = () => { currentPair = pair; pairInput.value = pair; pairDropdown.classList.add('hidden'); startApp(); }; pairDropdown.appendChild(div);
+      });
+    }
+
+    pairInput.addEventListener('focus', () => { renderDropdown(pairInput.value); pairDropdown.classList.remove('hidden'); });
+    pairInput.addEventListener('input', (e) => { renderDropdown(e.target.value); });
+    document.addEventListener('click', (e) => {
+      if (!pairInput.contains(e.target) && !pairDropdown.contains(e.target)) {
+        pairDropdown.classList.add('hidden'); if (!cryptoPairs.includes(pairInput.value.toUpperCase())) pairInput.value = currentPair;
+      }
+    });
+
+    $('tfSelect').addEventListener('change', (e) => { currentTF = e.target.value; startApp(); });
+
+    pairInput.value = currentPair; updateMTFCard(); startApp();
+  </script>
+</body>
+</html>
